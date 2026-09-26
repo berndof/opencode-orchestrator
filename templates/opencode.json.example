@@ -1,0 +1,62 @@
+{
+  "$schema": "https://opencode.ai/schema.json",
+  "mcp": {
+    "omni-remoto": {
+      "type": "local",
+      "command": ["omni-mcp-server"],
+      "enabled": true
+    },
+    "browser": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-puppeteer"],
+      "enabled": true
+    },
+    "cloudflare": {
+      "type": "local",
+      "command": ["npx", "-y", "@cloudflare/mcp-server-cloudflare"],
+      "environment": {
+        "CLOUDFLARE_API_TOKEN": "${CLOUDFLARE_API_TOKEN}"
+      },
+      "enabled": true
+    },
+    "cloudflare-docs": {
+      "type": "local",
+      "command": ["npx", "-y", "@cloudflare/mcp-server-cloudflare-docs"],
+      "enabled": true
+    }
+  },
+  "permissions": {
+    "ask": ["shell", "edit", "write"],
+    "allow": ["read", "glob", "grep", "memory_*"]
+  },
+  "subagents": {
+    "orchestrator": {
+      "step_limit": 12,
+      "allowed_tools": ["subagent", "memory_*", "opencode", "read", "glob", "grep"]
+    },
+    "architect": {
+      "step_limit": 10,
+      "allowed_tools": ["read", "glob", "grep", "memory_*"]
+    },
+    "worker": {
+      "step_limit": 10,
+      "allowed_tools": ["read", "write", "edit", "shell", "glob", "grep"]
+    },
+    "explorer": {
+      "step_limit": 8,
+      "allowed_tools": ["read", "glob", "grep"]
+    },
+    "librarian": {
+      "step_limit": 6,
+      "allowed_tools": ["memory_*", "read", "glob", "grep"]
+    },
+    "cloudflare": {
+      "step_limit": 8,
+      "allowed_tools": ["cloudflare", "read"]
+    },
+    "browser": {
+      "step_limit": 8,
+      "allowed_tools": ["browser", "read"]
+    }
+  }
+}

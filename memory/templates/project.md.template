@@ -1,0 +1,13 @@
+# Project Memory
+
+## Project Overview & Structure
+- **Root:** [Project root directory path]
+- **Main Repositories / Services:** [Key services, components, or frameworks]
+
+## Security Watchlist & Constraints
+- [Key security rules, auth requirements, input validation guidelines]
+- [Subagent step limits and tool access boundaries]
+- [Disallowed anti-patterns or rejected technical choices]
+
+## Key Decisions Log
+- **YYYY-MM-DD (Topic):** Summary of key decision, architectural choice, or convention.
