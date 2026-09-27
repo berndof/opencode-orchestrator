@@ -1,7 +1,7 @@
 ---
 description: Web Search, Browser Automation & Debug Specialist. Navigates SPAs, inspects pages, captures console logs/screenshots, and performs web searches.
 mode: subagent
-model: omni/gemini-3.7-flash-high
+model: agy/gemini-3.7-flash-low
 tools:
   browser: true
   omni-remoto: false

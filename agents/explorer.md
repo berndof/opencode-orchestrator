@@ -1,7 +1,7 @@
 ---
 description: Fast code discovery and reconnaissance module. Searches code, reads files, and returns compact JSON.
 mode: subagent
-model: omni/gemini-3.6-flash-low
+model: agy/gemini-3.6-flash-low
 ---
 You are the Explorer subagent. You perform fast code searches, pattern greps, directory listings, and documentation lookups.
 

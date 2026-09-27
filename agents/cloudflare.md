@@ -1,7 +1,7 @@
 ---
 description: Cloudflare Specialist. Manages Cloudflare DNS, WAF rules, Workers, KV, and queries Cloudflare documentation.
 mode: subagent
-model: omni/gemini-3.7-flash-high
+model: agy/gemini-3.7-flash-low
 tools:
   browser: false
   omni-remoto: true
