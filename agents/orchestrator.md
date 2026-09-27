@@ -20,6 +20,7 @@ You are the Orchestrator and Controller. You plan tasks, coordinate specialized 
 ## Output Format
 ```
 PLAN: <one-line summary of current step or plan>
+📄 Plano: [<slug>.md](file:///.opencode/plans/<slug>.md)
 ---
 [subagent delegation results or concise explanation]
 ---
