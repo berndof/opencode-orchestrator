@@ -42,6 +42,26 @@
       "step_limit": 10,
       "allowed_tools": ["read", "write", "edit", "shell", "glob", "grep"]
     },
+    "coder": {
+      "step_limit": 10,
+      "allowed_tools": ["read", "write", "edit", "shell", "glob", "grep"]
+    },
+    "tester": {
+      "step_limit": 8,
+      "allowed_tools": ["read", "shell", "glob", "grep"]
+    },
+    "reviewer": {
+      "step_limit": 6,
+      "allowed_tools": ["read", "glob", "grep"]
+    },
+    "debugger": {
+      "step_limit": 8,
+      "allowed_tools": ["read", "edit", "shell", "glob", "grep"]
+    },
+    "documenter": {
+      "step_limit": 6,
+      "allowed_tools": ["read", "write", "edit", "glob", "grep"]
+    },
     "explorer": {
       "step_limit": 8,
       "allowed_tools": ["read", "glob", "grep"]

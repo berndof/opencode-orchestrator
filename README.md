@@ -16,7 +16,12 @@ graph TD
     end
 
     subgraph Build & Execution Mode
-        Orch -->|Closed-spec Tasks| Worker[Worker Subagent]
+        Orch -->|Production Code| Coder[Coder Subagent]
+        Orch -->|Test Verification| Tester[Tester Subagent]
+        Orch -->|Code Review| Reviewer[Reviewer Subagent]
+        Orch -->|Bug Diagnosis| Debugger[Debugger Subagent]
+        Orch -->|Documentation| Documenter[Documenter Subagent]
+        Orch -->|Closed-spec / Shell Fallback| Worker[Worker Subagent]
         Orch -->|Fast Reconnaissance| Explorer[Explorer Subagent]
     end
 
@@ -37,7 +42,7 @@ graph TD
 
 1. **Dual-Mode Execution (Plan vs Build):**
    - **Plan Mode:** Interactive discovery, socratic dialog with `@architect`, state tracking with `@librarian`, and plan persistence in `.opencode/plans/`.
-   - **Build Mode:** Step-budgeted, non-interactive execution with strict tool delegation to `@worker`, `@explorer`, `@cloudflare`, and `@browser`.
+   - **Build Mode:** Dynamic routing with no fixed pipeline: `@coder/@tester/@reviewer/@debugger/@documenter` for code lifecycle, `@worker` as shell fallback, `@explorer/@cloudflare/@browser` for recon/infra/web.
 
 2. **English Subagent Prompting Protocol:**
    - All internal agent prompts, subagent delegations, architecture specifications, and code comments strictly adhere to dense technical English to optimize LLM context utilization and token density.
@@ -96,7 +101,12 @@ opencode-orchestrator/
 ├── agents/                  # Specialized agent prompt definitions
 │   ├── orchestrator.md      # Controller / Main Orchestrator agent
 │   ├── architect.md         # Solution design & Mermaid diagrams
-│   ├── worker.md            # Closed-spec code actuator
+│   ├── coder.md             # Production code implementation specialist
+│   ├── tester.md            # Test execution & verification agent
+│   ├── reviewer.md          # Static analysis & code review specialist
+│   ├── debugger.md          # Root cause analysis & bug fix agent
+│   ├── documenter.md        # Technical documentation & markdown agent
+│   ├── worker.md            # Shell execution & fallback actuator
 │   ├── explorer.md          # Fast code discovery & search
 │   ├── librarian.md         # Hierarchical memory & state manager
 │   ├── cloudflare.md        # Cloudflare DNS/WAF/Workers specialist
