@@ -1,7 +1,7 @@
 ---
 description: Software Architect & Solution Designer. Explores technical alternatives, trade-offs, visual Mermaid diagrams, and architectural decisions.
 mode: subagent
-model: omni/gemini-3.7-flash-high
+model: agy/gemini-3.7-flash-high
 tools:
   browser: false
   omni-remoto: false
