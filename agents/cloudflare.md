@@ -3,6 +3,7 @@ description: Cloudflare Specialist. Manages Cloudflare DNS, WAF rules, Workers, 
 mode: subagent
 model: agy/gemini-3.7-flash-low
 tools:
+  cloudflare: true
   browser: false
   omni-remoto: true
 ---
