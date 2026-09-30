@@ -1,4 +1,3 @@
-export default {
-  id: "opencode.remote",
-  setup: async () => {},
-}
+export { default } from "./tui"
+export * from "./tui"
+

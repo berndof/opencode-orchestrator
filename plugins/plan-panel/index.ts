@@ -1,4 +1,3 @@
-export default {
-  id: "opencode.plan-panel",
-  setup: async () => {},
-}
+export { default } from "./tui"
+export * from "./tui"
+
