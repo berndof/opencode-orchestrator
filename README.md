@@ -26,9 +26,10 @@ graph TD
         Orch -->|Fast Reconnaissance| Explorer[Explorer Subagent]
     end
 
-    subgraph Specialized MCP Domains & Remote
+    subgraph Specialized MCP Domains, Infra & Remote
         Worker -->|DNS/WAF/Workers| CF[Cloudflare Subagent]
         Worker -->|Browser Automation| Browser[Browser Subagent]
+        Orch -->|Containers / Docker / Services| Infra[Infra Subagent]
         Orch -->|Remote Tunnel & SSHFS| Remote[OpenCode Remote CLI / Plugin]
     end
 
@@ -131,6 +132,7 @@ opencode-orchestrator/
 │   ├── worker.md            # Shell execution & fallback actuator
 │   ├── explorer.md          # Fast code discovery & search
 │   ├── librarian.md         # Hierarchical memory & state manager
+│   ├── infra.md             # Docker, Compose & Infrastructure specialist
 │   ├── cloudflare.md        # Cloudflare DNS/WAF/Workers specialist
 │   └── browser.md           # Web search & browser automation agent
 ├── plugins/                 # OpenCode V2 TUI Plugins (SolidJS)
