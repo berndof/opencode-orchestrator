@@ -1624,18 +1624,36 @@ export default {
       })
     }
 
-    // 5. Live refresh: check for on-disk changes
+    // 5. Live refresh: check for on-disk changes and active session plan updates in real-time
+    let lastKnownFingerprint = ""
     const refreshTimer = setInterval(() => {
       try {
-        if (!currentPlan || actionBusy) return
-        if (api?.ui?.panel?.current?.()?.name !== PANEL_NAME) return
-        const fresh = readPlan(currentPlan.path, currentPlan.scope, currentPlan.scopeLabel)
-        if (fresh && (fresh.content !== currentPlan.content || fresh.status !== currentPlan.status)) {
-          currentPlan = fresh
+        if (actionBusy) return
+        const curCwd = cwd()
+        const sid = activeSession()
+        const effectiveScope = isHome() ? "global" : activeScopeFilter
+        const { sessionActivePlan } = getSessionScopedPlans(curCwd, sid, effectiveScope)
+
+        const activePath = sessionActivePlan?.path ?? ""
+        const activeMtime = sessionActivePlan?.mtime ?? 0
+        const activeStatus = sessionActivePlan?.status ?? ""
+        const activeDone = sessionActivePlan?.progress?.done ?? 0
+        const activeTotal = sessionActivePlan?.progress?.total ?? 0
+        const fp = `${sid}:${activePath}:${activeMtime}:${activeStatus}:${activeDone}/${activeTotal}`
+
+        if (fp !== lastKnownFingerprint) {
+          lastKnownFingerprint = fp
+          currentPlan = sessionActivePlan ?? resolvePlan()
           bump()
+        } else if (currentPlan) {
+          const fresh = readPlan(currentPlan.path, currentPlan.scope, currentPlan.scopeLabel)
+          if (fresh && (fresh.content !== currentPlan.content || fresh.status !== currentPlan.status || fresh.mtime !== currentPlan.mtime)) {
+            currentPlan = fresh
+            bump()
+          }
         }
       } catch {}
-    }, 2000)
+    }, 1000)
 
     return () => {
       clearInterval(refreshTimer)
