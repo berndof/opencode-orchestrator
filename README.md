@@ -1,6 +1,6 @@
 # OpenCode Orchestrator Suite
 
-Production-grade multi-agent orchestration ecosystem for **OpenCode** featuring dual-mode execution (Plan vs Build), strict MCP tool isolation, and a 2-level hierarchical memory model.
+Production-grade multi-agent orchestration ecosystem and plugin suite for **OpenCode** featuring dual-mode execution (Plan vs Build), TUI artifacts panel, strict MCP tool isolation, and a 2-level hierarchical memory model.
 
 ---
 
@@ -13,6 +13,7 @@ graph TD
     subgraph Planning & Ideation Mode
         Orch -->|Socratic Ideation & Diagrams| Arch[Architect Subagent]
         Orch -->|State & Memory Sync| Lib[Librarian Subagent]
+        Orch -->|Plan Panel TUI & Artifacts| PlanPanel[Plan Panel Plugin]
     end
 
     subgraph Build & Execution Mode
@@ -25,9 +26,10 @@ graph TD
         Orch -->|Fast Reconnaissance| Explorer[Explorer Subagent]
     end
 
-    subgraph Specialized MCP Domains
+    subgraph Specialized MCP Domains & Remote
         Worker -->|DNS/WAF/Workers| CF[Cloudflare Subagent]
         Worker -->|Browser Automation| Browser[Browser Subagent]
+        Orch -->|Remote Tunnel & SSHFS| Remote[OpenCode Remote CLI / Plugin]
     end
 
     Lib <-->|Read/Write Memory| ProjectMem[(Project Memory)]
@@ -38,58 +40,78 @@ graph TD
 
 ---
 
-## 🚀 Key Highlights & Protocols
+## 🚀 Key Highlights & Components
 
-1. **Dual-Mode Execution (Plan vs Build):**
-   - **Plan Mode:** Interactive discovery, socratic dialog with `@architect`, state tracking with `@librarian`, and plan persistence in `.opencode/plans/`.
-   - **Build Mode:** Dynamic routing with no fixed pipeline: `@coder/@tester/@reviewer/@debugger/@documenter` for code lifecycle, `@worker` as shell fallback, `@explorer/@cloudflare/@browser` for recon/infra/web.
+### 1. Dual-Mode Execution (Plan vs Build)
+- **Plan Mode:** Interactive discovery, socratic dialog with `@architect`, state tracking with `@librarian`, and live plan persistence in `.opencode/plans/`.
+- **Build Mode:** Dynamic routing with specialized agents: `@coder/@tester/@reviewer/@debugger/@documenter` for code lifecycle, `@worker` for shell actuation, and `@explorer/@cloudflare/@browser` for recon/infra/web.
 
-2. **English Subagent Prompting Protocol:**
-   - All internal agent prompts, subagent delegations, architecture specifications, and code comments strictly adhere to dense technical English to optimize LLM context utilization and token density.
+### 2. TUI Plan Panel Plugin (`plugins/plan-panel`)
+- Interactive SolidJS TUI panel embedded directly in OpenCode.
+- View active plan artifacts, status indicators, and live updates.
+- Keybinding: `Ctrl+G` to toggle viewer, or slash command `/plans` (`/plan`, `/plano`).
 
-3. **Strict MCP Tool Isolation & Scoping:**
-   - High-overhead tool schemas (e.g. Cloudflare, Browser Puppeteer) are isolated within dedicated subagents to maintain lean context windows and zero tool collision in main workflows.
+### 3. OpenCode Remote Suite (`scripts/opencode-remote` & `plugins/remote`)
+- CLI command `opencode-remote` (and alias `ocd`).
+- **One-Click Connect:** `ocd connect <host>` starts remote `opencode serve`, establishes SSH port forwarding, resolves server tokens, and launches the client.
+- **SSHFS Mount Mode:** `ocd mount <host> <dir>` to use local models, MCPs, and plugins on remote files.
+- **TUI Remote Menu:** `/remote` command with interactive host selector and prompt footer status indicator (`🌐 host` / `💻 local`).
 
-4. **2-Level Hierarchical Memory:**
-   - **Global Scope:** Cross-project user preferences, persona rules, and global search conventions.
-   - **Project Scope:** Local project architecture, security watchlists, and key decision logs maintained in `.opencode/memory/project.md`.
+### 4. Strict MCP Tool Isolation & Memory Hierarchy
+- High-overhead tool schemas (e.g. Cloudflare, Browser Puppeteer) are scoped strictly to specialist subagents.
+- Memory: Level 1 (Committed code on disk) > Level 2 (Project memory / `.opencode/memory/`) > Level 3 (Global memory).
+
+---
+
+## 📦 Prerequisites & System Dependencies
+
+- **Node.js:** `>= 18.0.0`
+- **OpenCode:** `>= 0.2.0`
+- **System Utilities (for remote/SSHFS):**
+  ```bash
+  # Debian / Ubuntu / Mint / PopOS
+  sudo apt install -y python3 openssh-client sshfs rsync
+
+  # Arch Linux / Manjaro
+  sudo pacman -S python openssh sshfs rsync
+
+  # Fedora / RHEL
+  sudo dnf install -y python3 openssh-clients sshfs rsync
+  ```
 
 ---
 
 ## 🛠️ Installation & Setup
 
-### Automated Installation
+### Automated Installation (Recommended)
 
-Run the provided installation script:
+Run the colorized installer to deploy agents, memories, plugins, and CLI tools:
 
 ```bash
 # Clone the repository
 git clone https://github.com/berndof/opencode-orchestrator.git
 cd opencode-orchestrator
 
-# Standard copy installation
-./install.sh
-
-# Symlink mode (recommended for development)
+# Symlink mode (recommended for live editing and dev updates)
 ./install.sh --symlink
 
-# Custom target directory
-./install.sh --target ~/.config/opencode --force
+# Or standard copy mode
+./install.sh --copy
+
+# Custom destinations
+./install.sh --target ~/.config/opencode --bin-dir ~/.local/bin --force
 ```
 
 ### Manual Configuration
 
-1. Copy agents to `~/.config/opencode/agents/`:
+1. **Agents:** Copy/symlink `agents/*.md` to `~/.config/opencode/agents/`
+2. **Memory:** Copy/symlink `memory/*.md` to `~/.config/opencode/memory/`
+3. **Plugins:** Copy/symlink `plugins/*` to `~/.config/opencode/plugins/`
+4. **CLI Tools:** Copy `scripts/opencode-remote` to `~/.local/bin/opencode-remote` and create aliases:
    ```bash
-   cp agents/*.md ~/.config/opencode/agents/
-   ```
-2. Copy memory files to `~/.config/opencode/memory/`:
-   ```bash
-   cp memory/*.md ~/.config/opencode/memory/
-   ```
-3. Copy template for project memory:
-   ```bash
-   cp templates/opencode.json.example ~/.opencode.json
+   chmod +x ~/.local/bin/opencode-remote
+   ln -sf ~/.local/bin/opencode-remote ~/.local/bin/ocd
+   ln -sf ~/.local/bin/opencode-remote ~/.local/bin/oc-remote
    ```
 
 ---
@@ -111,6 +133,15 @@ opencode-orchestrator/
 │   ├── librarian.md         # Hierarchical memory & state manager
 │   ├── cloudflare.md        # Cloudflare DNS/WAF/Workers specialist
 │   └── browser.md           # Web search & browser automation agent
+├── plugins/                 # OpenCode V2 TUI Plugins (SolidJS)
+│   ├── plan-panel/          # Active plan artifact visualizer (Ctrl+G, /plans)
+│   │   ├── index.ts
+│   │   └── tui.tsx
+│   └── remote/              # Remote host selector & footer status (/remote)
+│       ├── index.ts
+│       └── tui.tsx
+├── scripts/                 # CLI utilities
+│   └── opencode-remote      # Fast Python-based remote management tool
 ├── memory/                  # Hierarchical memory blocks
 │   ├── persona.md           # Persona & memory guidelines
 │   ├── human.md             # Collaboration & interaction preferences
@@ -119,7 +150,9 @@ opencode-orchestrator/
 │       └── project.md.template
 ├── templates/               # Workspace configuration examples
 │   └── opencode.json.example
-├── install.sh               # Colorized installer with backup support
+├── package.json             # NPM dependencies & plugin types
+├── tsconfig.json            # TypeScript & SolidJS JSX config
+├── install.sh               # Colorized installer with symlink & backup support
 ├── LICENSE                  # MIT License
 └── README.md                # Documentation & Architecture Overview
 ```

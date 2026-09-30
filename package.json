@@ -1,0 +1,26 @@
+{
+  "name": "opencode-orchestrator",
+  "version": "1.0.0",
+  "description": "Orchestrator architecture, specialized multi-agent system, plugins, and remote toolchain for OpenCode",
+  "main": "plugins/plan-panel/index.ts",
+  "scripts": {
+    "install:all": "./install.sh --symlink",
+    "install:copy": "./install.sh --copy"
+  },
+  "keywords": [
+    "opencode",
+    "orchestrator",
+    "agents",
+    "multi-agent",
+    "plan-panel",
+    "remote",
+    "plugins"
+  ],
+  "author": "Bernardo <bernardofb@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "solid-js": "^1.8.15",
+    "typescript": "^5.3.3"
+  }
+}
