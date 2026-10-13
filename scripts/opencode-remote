@@ -11,6 +11,7 @@ import argparse
 import subprocess
 import json
 import time
+import socket
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -348,12 +349,70 @@ def get_ssh_tunnel_pid(host, port):
     return None
 
 
-def stop_tunnel_only(host, port):
+def is_local_port_in_use(port, host="127.0.0.1"):
+    """Check if a local TCP port is in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((host, int(port)))
+            return False
+        except OSError:
+            return True
+
+
+def find_available_local_port(start_port=4096, max_attempts=100, host="127.0.0.1"):
+    """Find the next available local port starting from start_port."""
+    for p in range(start_port, start_port + max_attempts):
+        if not is_local_port_in_use(p, host):
+            return p
+    raise RuntimeError(f"No available local port found in range {start_port}..{start_port + max_attempts - 1}")
+
+
+def resolve_local_port(host, requested_port=None, default_port=4096, remote_port=4096):
+    """
+    Determine the local port to use for the SSH tunnel.
+    If a healthy tunnel already exists for this host, reuse its local port.
+    If requested_port is provided explicitly and in use, warn.
+    If requested_port is None and default_port is in use by another session/process,
+    auto-allocate the next free port and warn.
+    Returns: (local_port, is_auto_allocated)
+    """
     tunnel_file = TUNNELS_DIR / f"{host}.json"
     if tunnel_file.exists():
         try:
             data = json.loads(tunnel_file.read_text())
+            saved_pid = data.get("pid")
+            saved_local_port = data.get("local_port", data.get("port"))
+            if saved_local_port and saved_pid and is_process_running(saved_pid):
+                ok, _ = probe_http(saved_local_port, timeout=1)
+                if ok:
+                    return saved_local_port, False
+        except Exception:
+            pass
+
+    if requested_port is not None:
+        if is_local_port_in_use(requested_port):
+            print(f"{YELLOW}⚠️  [Warning] Porta local {requested_port} já está em uso por outro processo ou túnel.{RESET}", file=sys.stderr)
+        return requested_port, False
+
+    if not is_local_port_in_use(default_port):
+        return default_port, False
+
+    allocated_port = find_available_local_port(start_port=default_port + 1)
+    print(f"\n{YELLOW}⚠️  [Warning] Porta local {default_port} em uso por outra sessão/processo.{RESET}")
+    print(f"{YELLOW}   Alocando automaticamente a porta livre {allocated_port} para o túnel local de '{host}' (localhost:{allocated_port} -> {host}:{remote_port}).{RESET}\n")
+    return allocated_port, True
+
+
+def stop_tunnel_only(host, port=None):
+    tunnel_file = TUNNELS_DIR / f"{host}.json"
+    target_port = port
+    if tunnel_file.exists():
+        try:
+            data = json.loads(tunnel_file.read_text())
             pid = data.get("pid")
+            if not target_port:
+                target_port = data.get("local_port", data.get("port"))
             if pid and is_process_running(pid):
                 try:
                     os.kill(pid, 15)
@@ -363,12 +422,13 @@ def stop_tunnel_only(host, port):
         except Exception:
             pass
 
-    pid = get_ssh_tunnel_pid(host, port)
-    if pid and is_process_running(pid):
-        try:
-            os.kill(pid, 15)
-        except OSError:
-            pass
+    if target_port:
+        pid = get_ssh_tunnel_pid(host, target_port)
+        if pid and is_process_running(pid):
+            try:
+                os.kill(pid, 15)
+            except OSError:
+                pass
 
 
 def remote_port_listening_cmd(port):
@@ -660,8 +720,12 @@ def cmd_serve(args):
 def cmd_tunnel(args):
     host = args.host
     cfg = load_host_config(host)
-    local_port = args.port if args.port is not None else cfg.get("local_port", 4096)
-    remote_port = cfg.get("remote_port", local_port)
+    remote_port = cfg.get("remote_port", 4096)
+    if args.port is not None and not cfg.get("remote_port"):
+        remote_port = args.port
+
+    default_local_port = cfg.get("local_port", 4096)
+    local_port, _ = resolve_local_port(host, requested_port=args.port, default_port=default_local_port, remote_port=remote_port)
 
     TUNNELS_DIR.mkdir(parents=True, exist_ok=True)
     tunnel_file = TUNNELS_DIR / f"{host}.json"
@@ -672,7 +736,7 @@ def cmd_tunnel(args):
             data = json.loads(tunnel_file.read_text())
             pid = data.get("pid")
             if pid and is_process_running(pid):
-                active_port = data.get("port", local_port)
+                active_port = data.get("local_port", data.get("port", local_port))
                 ok, detail = probe_http(active_port)
                 pwd = data.get("password") or get_remote_server_password(host, cfg)
                 if ok:
@@ -758,8 +822,12 @@ def cmd_tunnel(args):
 def cmd_connect(args):
     host = args.host
     cfg = load_host_config(host)
-    local_port = args.port if args.port is not None else cfg.get("local_port", 4096)
-    remote_port = cfg.get("remote_port", local_port)
+    remote_port = cfg.get("remote_port", 4096)
+    if args.port is not None and not cfg.get("remote_port"):
+        remote_port = args.port
+
+    default_local_port = cfg.get("local_port", 4096)
+    local_port, _ = resolve_local_port(host, requested_port=args.port, default_port=default_local_port, remote_port=remote_port)
     remote_dir = args.dir or cfg.get("remote_directory") or ""
     password = getattr(args, "password", None) or cfg.get("opencode_password")
 
@@ -812,7 +880,7 @@ def cmd_connect(args):
             print(f" {GREEN}RUNNING{RESET}")
 
     # 3. Local SSH tunnel (non-fatal: we repair and retry below)
-    print(f"[3/4] Verifying local SSH tunnel (localhost:{local_port})...", end="", flush=True)
+    print(f"[3/4] Verifying local SSH tunnel (localhost:{local_port} -> {host}:{remote_port})...", end="", flush=True)
     ok, detail = probe_http(local_port)
     if ok:
         print(f" {GREEN}ACTIVE ({detail}){RESET}")
@@ -906,8 +974,20 @@ def collect_all_hosts():
 
 def _status_one(host, port=None, timeout=4):
     cfg = load_host_config(host)
-    local_port = port if port is not None else cfg.get("local_port", 4096)
-    remote_port = cfg.get("remote_port", local_port)
+    
+    tunnel_file = TUNNELS_DIR / f"{host}.json"
+    saved_local_port = None
+    saved_remote_port = None
+    if tunnel_file.exists():
+        try:
+            data = json.loads(tunnel_file.read_text())
+            saved_local_port = data.get("local_port", data.get("port"))
+            saved_remote_port = data.get("remote_port")
+        except Exception:
+            pass
+
+    local_port = port if port is not None else (saved_local_port or cfg.get("local_port", 4096))
+    remote_port = saved_remote_port or cfg.get("remote_port", local_port)
 
     row = {"host": host, "local_port": local_port, "remote_port": remote_port}
 
@@ -935,7 +1015,7 @@ def _status_one(host, port=None, timeout=4):
     # 3. Local tunnel
     ok, detail = probe_http(local_port, timeout=3)
     if ok:
-        row["tunnel"] = f"ACTIVE ({detail})"
+        row["tunnel"] = f"ACTIVE (:{local_port})" if local_port != 4096 else f"ACTIVE ({detail})"
     else:
         pid = get_ssh_tunnel_pid(host, local_port)
         row["tunnel"] = f"STALE (pid {pid})" if pid else "INACTIVE"
@@ -999,8 +1079,20 @@ def cmd_status(args):
 
     host = args.host
     cfg = load_host_config(host)
-    local_port = args.port if args.port is not None else cfg.get("local_port", 4096)
-    remote_port = cfg.get("remote_port", local_port)
+    
+    tunnel_file = TUNNELS_DIR / f"{host}.json"
+    saved_local_port = None
+    saved_remote_port = None
+    if tunnel_file.exists():
+        try:
+            data = json.loads(tunnel_file.read_text())
+            saved_local_port = data.get("local_port", data.get("port"))
+            saved_remote_port = data.get("remote_port")
+        except Exception:
+            pass
+
+    local_port = args.port if args.port is not None else (saved_local_port or cfg.get("local_port", 4096))
+    remote_port = saved_remote_port or cfg.get("remote_port", local_port)
 
     print(f"{BOLD}=== Status for Remote Host: {host} ==={RESET}\n")
 
@@ -1035,7 +1127,7 @@ def cmd_status(args):
         print(f"{YELLOW}UNKNOWN (SSH down){RESET}")
 
     # 3. Local SSH Tunnel
-    print(f"[3/4] Local SSH Tunnel (localhost:{local_port}): ", end="", flush=True)
+    print(f"[3/4] Local SSH Tunnel (localhost:{local_port} -> {host}:{remote_port}): ", end="", flush=True)
     ok, detail = probe_http(local_port)
     if ok:
         print(f"{GREEN}ACTIVE{RESET} ({detail})")
@@ -1063,31 +1155,25 @@ def cmd_status(args):
 def cmd_stop(args):
     host = args.host
     cfg = load_host_config(host)
-    local_port = args.port if args.port is not None else cfg.get("local_port", 4096)
-    remote_port = cfg.get("remote_port", local_port)
+    
+    tunnel_file = TUNNELS_DIR / f"{host}.json"
+    saved_local_port = None
+    saved_remote_port = None
+    if tunnel_file.exists():
+        try:
+            data = json.loads(tunnel_file.read_text())
+            saved_local_port = data.get("local_port", data.get("port"))
+            saved_remote_port = data.get("remote_port")
+        except Exception:
+            pass
+
+    local_port = args.port if args.port is not None else (saved_local_port or cfg.get("local_port", 4096))
+    remote_port = saved_remote_port or cfg.get("remote_port", local_port)
 
     print(f"{BLUE}Stopping remote services and local tunnels for host '{host}'...{RESET}")
 
     # Stop local tunnel
-    tunnel_file = TUNNELS_DIR / f"{host}.json"
-    if tunnel_file.exists():
-        try:
-            data = json.loads(tunnel_file.read_text())
-            pid = data.get("pid")
-            if pid and is_process_running(pid):
-                print(f"Terminating local SSH tunnel PID {pid}...")
-                os.kill(pid, 15)  # SIGTERM
-            tunnel_file.unlink()
-        except Exception as e:
-            print(f"Warning cleaning tunnel file: {e}")
-
-    pid = get_ssh_tunnel_pid(host, local_port)
-    if pid and is_process_running(pid):
-        print(f"Terminating local SSH tunnel PID {pid}...")
-        try:
-            os.kill(pid, 9)  # SIGKILL
-        except Exception:
-            pass
+    stop_tunnel_only(host, local_port)
 
     # Stop remote daemon
     print(f"Stopping remote 'opencode serve' on port {remote_port} at '{host}'...")

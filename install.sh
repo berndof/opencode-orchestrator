@@ -30,8 +30,10 @@ usage() {
     echo -e "${BOLD}Options:${NC}"
     echo "  --target <dir>   Target config directory (default: ~/.config/opencode)"
     echo "  --bin-dir <dir>  Target binary directory (default: ~/.local/bin)"
+    echo "  --commands-dir <dir> Target commands directory (default: ~/.opencode/commands)"
     echo "  --symlink        Create symlinks instead of copying files"
     echo "  --copy           Copy files directly (default mode)"
+    echo "  --with-plan-panel  Also install the opt-in plan-panel TUI plugin (default: OFF)"
     echo "  --force          Overwrite existing files without backup"
     echo "  --help           Show this help message"
     exit 0
@@ -39,8 +41,10 @@ usage() {
 
 TARGET_DIR="$HOME/.config/opencode"
 BIN_DIR="$HOME/.local/bin"
+COMMANDS_DIR="$HOME/.opencode/commands"
 MODE="copy"
 FORCE=false
+WITH_PLAN_PANEL=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -50,6 +54,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --bin-dir)
             BIN_DIR="$2"
+            shift 2
+            ;;
+        --commands-dir)
+            COMMANDS_DIR="$2"
             shift 2
             ;;
         --symlink)
@@ -62,6 +70,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --force)
             FORCE=true
+            shift
+            ;;
+        --with-plan-panel)
+            WITH_PLAN_PANEL=true
             shift
             ;;
         --help)
@@ -81,11 +93,13 @@ print_header
 
 echo -e "${BLUE}Target config directory:${NC} ${TARGET_DIR}"
 echo -e "${BLUE}Target bin directory:${NC}    ${BIN_DIR}"
+echo -e "${BLUE}Target commands dir:${NC}     ${COMMANDS_DIR}"
 echo -e "${BLUE}Installation mode:${NC}       ${MODE}"
 echo -e "${BLUE}Force overwrite:${NC}         ${FORCE}"
+echo -e "${BLUE}Plan panel plugin:${NC}       ${WITH_PLAN_PANEL} (opt-in via --with-plan-panel)"
 echo ""
 
-mkdir -p "${TARGET_DIR}/agents" "${TARGET_DIR}/memory" "${TARGET_DIR}/plugins" "${BIN_DIR}"
+mkdir -p "${TARGET_DIR}/agents" "${TARGET_DIR}/memory" "${TARGET_DIR}/plugins" "${BIN_DIR}" "${COMMANDS_DIR}"
 
 install_item() {
     local src="$1"
@@ -127,11 +141,15 @@ for mem in "${SCRIPT_DIR}/memory/"*.md; do
 done
 
 echo ""
-echo -e "${BOLD}${MAGENTA}3. Installing Plugins (Plan Panel & Remote)...${NC}"
+echo -e "${BOLD}${MAGENTA}3. Installing Plugins (Remote; Plan Panel is opt-in)...${NC}"
 if [[ -d "${SCRIPT_DIR}/plugins" ]]; then
     for plugin in "${SCRIPT_DIR}/plugins/"*; do
         if [[ -d "$plugin" ]]; then
             pname=$(basename "$plugin")
+            if [[ "$pname" == "plan-panel" && "$WITH_PLAN_PANEL" != true ]]; then
+                echo -e "${YELLOW}[SKIPPED]${NC} ${pname} (opt-in: re-run with --with-plan-panel)"
+                continue
+            fi
             install_item "$plugin" "${TARGET_DIR}/plugins/${pname}"
         fi
     done
@@ -150,8 +168,20 @@ if [[ -f "${SCRIPT_DIR}/scripts/opencode-remote" ]]; then
 fi
 
 echo ""
+echo -e "${BOLD}${MAGENTA}5. Installing Slash Commands...${NC}"
+if [[ -d "${SCRIPT_DIR}/commands" ]]; then
+    for cmd in "${SCRIPT_DIR}/commands/"*.md; do
+        if [[ -f "$cmd" ]]; then
+            filename=$(basename "$cmd")
+            install_item "$cmd" "${COMMANDS_DIR}/${filename}"
+        fi
+    done
+fi
+
+echo ""
 echo -e "${GREEN}${BOLD}Installation complete!${NC}"
-echo -e "Agents:  ${CYAN}${TARGET_DIR}/agents${NC}"
-echo -e "Memory:  ${CYAN}${TARGET_DIR}/memory${NC}"
-echo -e "Plugins: ${CYAN}${TARGET_DIR}/plugins${NC}"
-echo -e "CLI:     ${CYAN}${BIN_DIR}/opencode-remote (aliases: ocd, oc-remote)${NC}"
+echo -e "Agents:   ${CYAN}${TARGET_DIR}/agents${NC}"
+echo -e "Memory:   ${CYAN}${TARGET_DIR}/memory${NC}"
+echo -e "Plugins:  ${CYAN}${TARGET_DIR}/plugins${NC}"
+echo -e "CLI:      ${CYAN}${BIN_DIR}/opencode-remote (aliases: ocd, oc-remote)${NC}"
+echo -e "Commands: ${CYAN}${COMMANDS_DIR}${NC}"

@@ -1,9 +1,9 @@
 ---
 description: Test generator and executor. Creates and runs unit/integration tests, reports PASS/FAIL.
 mode: subagent
-model: agy/gemini-3.6-flash-low
 tools:
   browser: false
+  cloudflare: false
   omni-remoto: false
 ---
 You are the Tester subagent. You generate and execute tests for code produced by Coder/Debugger. You do not implement features.

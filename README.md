@@ -1,6 +1,8 @@
 # OpenCode Orchestrator Suite
 
-Production-grade multi-agent orchestration ecosystem and plugin suite for **OpenCode** featuring dual-mode execution (Plan vs Build), TUI artifacts panel, strict MCP tool isolation, and a 2-level hierarchical memory model.
+Production-grade multi-agent orchestration ecosystem and plugin suite for **OpenCode** featuring a
+mandatory recon -> design -> implement -> verify sequence, an opt-in TUI plan panel, strict MCP tool
+isolation, and a 2-level hierarchical memory model.
 
 ---
 
@@ -10,28 +12,46 @@ Production-grade multi-agent orchestration ecosystem and plugin suite for **Open
 graph TD
     User([User Request]) --> Orch[Orchestrator Controller]
     
-    subgraph Planning & Ideation Mode
-        Orch -->|Socratic Ideation & Diagrams| Arch[Architect Subagent]
-        Orch -->|State & Memory Sync| Lib[Librarian Subagent]
-        Orch -->|Plan Panel TUI & Artifacts| PlanPanel[Plan Panel Plugin]
+    subgraph Primaries
+        Orch -.->|Design & trade-offs| Arch[Architect]
     end
 
-    subgraph Build & Execution Mode
-        Orch -->|Production Code| Coder[Coder Subagent]
-        Orch -->|Test Verification| Tester[Tester Subagent]
-        Orch -->|Code Review| Reviewer[Reviewer Subagent]
-        Orch -->|Bug Diagnosis| Debugger[Debugger Subagent]
-        Orch -->|Documentation| Documenter[Documenter Subagent]
-        Orch -->|Closed-spec / Shell Fallback| Worker[Worker Subagent]
-        Orch -->|Fast Reconnaissance| Explorer[Explorer Subagent]
+    subgraph Memory Spine
+        Orch <-->|Before recon / after verify| Lib[Librarian]
     end
 
-    subgraph Specialized MCP Domains, Infra & Remote
-        Worker -->|DNS/WAF/Workers| CF[Cloudflare Subagent]
-        Worker -->|Browser Automation| Browser[Browser Subagent]
-        Orch -->|Containers / Docker / Services| Infra[Infra Subagent]
-        Orch -->|Remote Tunnel & SSHFS| Remote[OpenCode Remote CLI / Plugin]
+    subgraph Recon
+        Orch -->|Verified facts path:line| Explorer[Explorer]
+        Orch -->|Broad research| General[General]
     end
+
+    subgraph Implement
+        Orch -->|Closed-spec code| Coder[Coder]
+        Orch -->|Shell & commands| Worker[Worker]
+        Orch -->|Containers / systemd / deploy| Infra[Infra]
+    end
+
+    subgraph Verify
+        Orch -->|Test execution| Tester[Tester]
+        Orch -->|Read-only gate| Reviewer[Reviewer]
+        Orch -->|Root cause| Debugger[Debugger]
+        Orch -->|Docs| Documenter[Documenter]
+    end
+
+    subgraph Specialized
+        Orch -->|Web & SPA| Browser[Browser]
+        Orch -->|DNS / WAF / TLS| CF[Cloudflare]
+        Orch -->|Zabbix & metrics| ZBX[Zabbix]
+        Orch -->|Remote tunnel & SSHFS| Remote[OpenCode Remote CLI / Plugin]
+    end
+
+    subgraph Security
+        Orch -->|static audit after reviewer| SA[sec-audit]
+        Orch -->|validate a finding| SP[sec-pentest]
+        Orch -->|remediate| SF[sec-fix]
+    end
+
+    Orch -.->|Plan artifacts opt-in| PlanPanel[Plan Panel Plugin]
 
     Lib <-->|Read/Write Memory| ProjectMem[(Project Memory)]
     Lib <-->|Read/Write Memory| GlobalMem[(Global Memory)]
@@ -43,22 +63,89 @@ graph TD
 
 ## 🚀 Key Highlights & Components
 
-### 1. Dual-Mode Execution (Plan vs Build)
-- **Plan Mode:** Interactive discovery, socratic dialog with `@architect`, state tracking with `@librarian`, and live plan persistence in `.opencode/plans/`.
-- **Build Mode:** Dynamic routing with specialized agents: `@coder/@tester/@reviewer/@debugger/@documenter` for code lifecycle, `@worker` for shell actuation, and `@explorer/@cloudflare/@browser` for recon/infra/web.
+### 1. Sequence: Recon -> Design -> Implement -> Verify
+Enforced on the primary agents (`@orchestrator`, `@architect`):
+- **Recon:** `@explorer` returns verified facts with `path:line`; `@librarian` returns prior decisions.
+- **Design:** `@architect` settles approach, trade-offs, and the execution path **before** any code-modifying agent runs.
+- **Implement:** atomic closed specs (`target files` + `change` + `acceptance criteria`).
+- **Verify:** `@tester` for behavior, `@reviewer` as the read-only quality gate.
 
-### 2. TUI Plan Panel Plugin (`plugins/plan-panel`)
+Plans are used when the task benefits from one, following whatever plan convention is active at
+runtime — no plan path, frontmatter, or status value is hardcoded in any agent prompt.
+
+### 2. Architect Response Standard
+`@architect` follows a fixed 9-section contract so every answer is directly actionable:
+`RESUMO` -> `CONTEXTO` -> `OPCOES` (always 2-4, in a table when 3+) -> `ANALISE` (reversibility,
+blast radius, cost) -> `DIAGRAMA` (Mermaid) -> `RECOMENDACAO` (explicit pick + what would flip it) ->
+`RISCOS` (top 3 + mitigation) -> `EXECUCAO` (atomic checklist) -> `PERGUNTAS` (only when blocked).
+
+### 3. Agent Frontmatter Policy
+- **No model pins.** Agents inherit the session model, so a pinned model going unavailable never
+  breaks a subagent. To pin one, add `model: provider/model` to the agent frontmatter.
+- **Tool isolation is explicit.** Heavy MCP servers (`browser`, `cloudflare`, `omni-remoto`) are
+  denied by default and granted only to the specialist that needs them; `explorer` and `reviewer`
+  additionally have `write`/`edit` disabled, making their read-only nature structural, not just
+  prompt-based.
+
+### 4. Routing & Cost
+Measured with `tools/orchestrator_analytics`: broad tasks concentrated ~85% of cost in a single
+agent, because nothing decided who got the work. The orchestrator now applies:
+- one tool call solves it -> do it yourself, never delegate trivia;
+- surgical, fully specified change -> `@coder` (or `@worker` for shell only);
+- broad multi-step implementation -> stays with the primary, which delegates only recon, tests and review;
+- at most **3 subagents concurrently**, one specialist per objective.
+
+### 4.1 Full Agent Roster
+Every configured agent has an objective in the flow — nothing is orphaned.
+
+| Agent | Objective | Kind |
+| --- | --- | --- |
+| `@orchestrator` | plan, coordinate, arbitrate, maintain state | primary |
+| `@architect` | design, trade-offs, diagrams, response standard | primary |
+| `@librarian` | memory: prior decisions, constraints, watchlists | subagent |
+| `@explorer` | recon, verified facts with `path:line` | subagent |
+| `@general` | broad research / mixed-tool work | subagent |
+| `@coder` | surgical code from a closed spec | subagent |
+| `@worker` | shell and command actuation | subagent |
+| `@tester` | test generation and execution | subagent |
+| `@reviewer` | read-only quality gate | subagent |
+| `@debugger` | root-cause analysis | subagent |
+| `@documenter` | documentation sync | subagent |
+| `@infra` | Docker, systemd, deploy, reverse proxy | subagent |
+| `@browser` | web, SPA, console/network inspection | subagent |
+| `@cloudflare` | DNS, WAF, Workers, TLS, Cloudflare docs | subagent |
+| `@zabbix` | Zabbix API, monitoring, metrics, triggers | subagent |
+| `@sec-audit` | static security audit (OWASP/CWE) | subagent, read-only |
+| `@sec-pentest` | safe exploitation validation | subagent, read-only |
+| `@sec-fix` | security remediation | subagent, least-privilege |
+
+**Memory is a step, not a phase.** `@librarian` runs *before* recon (decisions, constraints, watchlists
+and the stored recon map), at the design gate (persist what `@architect` decided), and *after*
+verification (persist new constraints and rejected approaches).
+
+**Recon cache.** `@explorer` returns a `recon_map` (entry points, key modules with `path:line`,
+conventions, build/test commands). It is persisted once in the project memory block; later tasks load
+it and dispatch recon only for the delta. Re-running the same exploration was the most common waste in
+this system — `no_output` was the single largest breach cause (15 of 27).
+
+**Security is a gate, and it is delegated.** For auth, crypto, network, upload or input-handling
+changes the flow dispatches `@sec-audit` (static) after `@reviewer`, `@sec-pentest` when a finding
+needs proof, and `@sec-fix` for remediation. All three are read-only or least-privilege with `bash`
+denied at the tool layer: scanners and test runs are the primary's job, executed from the
+`SCANNER_REQUESTED` / `VERIFY_REQUESTED` lines they emit.
+
+### 5. TUI Plan Panel Plugin (`plugins/plan-panel`) — opt-in
+- **Disabled by default** and not installed by `./install.sh` unless `--with-plan-panel` is passed.
 - Interactive SolidJS TUI panel embedded directly in OpenCode.
-- View active plan artifacts, status indicators, and live updates.
 - Keybinding: `Ctrl+G` to toggle viewer, or slash command `/plans` (`/plan`, `/plano`).
 
-### 3. OpenCode Remote Suite (`scripts/opencode-remote` & `plugins/remote`)
+### 6. OpenCode Remote Suite (`scripts/opencode-remote` & `plugins/remote`)
 - CLI command `opencode-remote` (and alias `ocd`).
 - **One-Click Connect:** `ocd connect <host>` starts remote `opencode serve`, establishes SSH port forwarding, resolves server tokens, and launches the client.
 - **SSHFS Mount Mode:** `ocd mount <host> <dir>` to use local models, MCPs, and plugins on remote files.
 - **TUI Remote Menu:** `/remote` command with interactive host selector and prompt footer status indicator (`🌐 host` / `💻 local`).
 
-### 4. Strict MCP Tool Isolation & Memory Hierarchy
+### 7. Strict MCP Tool Isolation & Memory Hierarchy
 - High-overhead tool schemas (e.g. Cloudflare, Browser Puppeteer) are scoped strictly to specialist subagents.
 - Memory: Level 1 (Committed code on disk) > Level 2 (Project memory / `.opencode/memory/`) > Level 3 (Global memory).
 
@@ -99,6 +186,9 @@ cd opencode-orchestrator
 # Or standard copy mode
 ./install.sh --copy
 
+# Opt-in: also install the plan-panel TUI plugin (not installed by default)
+./install.sh --symlink --with-plan-panel
+
 # Custom destinations
 ./install.sh --target ~/.config/opencode --bin-dir ~/.local/bin --force
 ```
@@ -134,9 +224,13 @@ opencode-orchestrator/
 │   ├── librarian.md         # Hierarchical memory & state manager
 │   ├── infra.md             # Docker, Compose & Infrastructure specialist
 │   ├── cloudflare.md        # Cloudflare DNS/WAF/Workers specialist
-│   └── browser.md           # Web search & browser automation agent
+│   ├── zabbix.md            # Zabbix API, monitoring, metrics & triggers
+│   ├── browser.md           # Web search & browser automation agent
+│   ├── sec-audit.md         # Static security audit subagent (read-only)
+│   ├── sec-pentest.md       # Safe exploitation validation subagent (read-only)
+│   └── sec-fix.md           # Security remediation subagent (least-privilege)
 ├── plugins/                 # OpenCode V2 TUI Plugins (SolidJS)
-│   ├── plan-panel/          # Active plan artifact visualizer (Ctrl+G, /plans)
+│   ├── plan-panel/          # Active plan artifact visualizer (Ctrl+G, /plans) — opt-in install
 │   │   ├── index.ts
 │   │   └── tui.tsx
 │   └── remote/              # Remote host selector & footer status (/remote)
