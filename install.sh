@@ -141,7 +141,7 @@ for mem in "${SCRIPT_DIR}/memory/"*.md; do
 done
 
 echo ""
-echo -e "${BOLD}${MAGENTA}3. Installing Plugins (Remote; Plan Panel is opt-in)...${NC}"
+echo -e "${BOLD}${MAGENTA}3. Installing Plugins (Plan Panel is opt-in)...${NC}"
 if [[ -d "${SCRIPT_DIR}/plugins" ]]; then
     for plugin in "${SCRIPT_DIR}/plugins/"*; do
         if [[ -d "$plugin" ]]; then
@@ -156,19 +156,7 @@ if [[ -d "${SCRIPT_DIR}/plugins" ]]; then
 fi
 
 echo ""
-echo -e "${BOLD}${MAGENTA}4. Installing CLI Tools (opencode-remote & aliases)...${NC}"
-if [[ -f "${SCRIPT_DIR}/scripts/opencode-remote" ]]; then
-    chmod +x "${SCRIPT_DIR}/scripts/opencode-remote"
-    install_item "${SCRIPT_DIR}/scripts/opencode-remote" "${BIN_DIR}/opencode-remote"
-    # Create aliases
-    ln -sf "${BIN_DIR}/opencode-remote" "${BIN_DIR}/ocd"
-    ln -sf "${BIN_DIR}/opencode-remote" "${BIN_DIR}/oc-remote"
-    echo -e "${GREEN}[ALIAS]${NC}   ${BIN_DIR}/ocd -> ${BIN_DIR}/opencode-remote"
-    echo -e "${GREEN}[ALIAS]${NC}   ${BIN_DIR}/oc-remote -> ${BIN_DIR}/opencode-remote"
-fi
-
-echo ""
-echo -e "${BOLD}${MAGENTA}5. Installing Slash Commands...${NC}"
+echo -e "${BOLD}${MAGENTA}4. Installing Slash Commands...${NC}"
 if [[ -d "${SCRIPT_DIR}/commands" ]]; then
     for cmd in "${SCRIPT_DIR}/commands/"*.md; do
         if [[ -f "$cmd" ]]; then
@@ -183,5 +171,5 @@ echo -e "${GREEN}${BOLD}Installation complete!${NC}"
 echo -e "Agents:   ${CYAN}${TARGET_DIR}/agents${NC}"
 echo -e "Memory:   ${CYAN}${TARGET_DIR}/memory${NC}"
 echo -e "Plugins:  ${CYAN}${TARGET_DIR}/plugins${NC}"
-echo -e "CLI:      ${CYAN}${BIN_DIR}/opencode-remote (aliases: ocd, oc-remote)${NC}"
 echo -e "Commands: ${CYAN}${COMMANDS_DIR}${NC}"
+echo -e "Remote:   ${CYAN}Standalone repo -> https://github.com/berndof/opencode-remote${NC}"

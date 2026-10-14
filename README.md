@@ -139,11 +139,13 @@ denied at the tool layer: scanners and test runs are the primary's job, executed
 - Interactive SolidJS TUI panel embedded directly in OpenCode.
 - Keybinding: `Ctrl+G` to toggle viewer, or slash command `/plans` (`/plan`, `/plano`).
 
-### 6. OpenCode Remote Suite (`scripts/opencode-remote` & `plugins/remote`)
-- CLI command `opencode-remote` (and alias `ocd`).
-- **One-Click Connect:** `ocd connect <host>` starts remote `opencode serve`, establishes SSH port forwarding, resolves server tokens, and launches the client.
-- **SSHFS Mount Mode:** `ocd mount <host> <dir>` to use local models, MCPs, and plugins on remote files.
-- **TUI Remote Menu:** `/remote` command with interactive host selector and prompt footer status indicator (`🌐 host` / `💻 local`).
+### 6. OpenCode Remote Integration ([`berndof/opencode-remote`](https://github.com/berndof/opencode-remote))
+- Maintained as a standalone package & repository: [`https://github.com/berndof/opencode-remote`](https://github.com/berndof/opencode-remote).
+- CLI command `opencode-remote` (and aliases `ocd`, `oc-remote`), `/remote` TUI plugin, and agent skill.
+- Install standalone via:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/berndof/opencode-remote/main/install.sh | bash
+  ```
 
 ### 7. Strict MCP Tool Isolation & Memory Hierarchy
 - High-overhead tool schemas (e.g. Cloudflare, Browser Puppeteer) are scoped strictly to specialist subagents.
@@ -155,17 +157,6 @@ denied at the tool layer: scanners and test runs are the primary's job, executed
 
 - **Node.js:** `>= 18.0.0`
 - **OpenCode:** `>= 0.2.0`
-- **System Utilities (for remote/SSHFS):**
-  ```bash
-  # Debian / Ubuntu / Mint / PopOS
-  sudo apt install -y python3 openssh-client sshfs rsync
-
-  # Arch Linux / Manjaro
-  sudo pacman -S python openssh sshfs rsync
-
-  # Fedora / RHEL
-  sudo dnf install -y python3 openssh-clients sshfs rsync
-  ```
 
 ---
 
@@ -173,7 +164,7 @@ denied at the tool layer: scanners and test runs are the primary's job, executed
 
 ### Automated Installation (Recommended)
 
-Run the colorized installer to deploy agents, memories, plugins, and CLI tools:
+Run the colorized installer to deploy agents, memories, and optional plugins:
 
 ```bash
 # Clone the repository
@@ -190,20 +181,14 @@ cd opencode-orchestrator
 ./install.sh --symlink --with-plan-panel
 
 # Custom destinations
-./install.sh --target ~/.config/opencode --bin-dir ~/.local/bin --force
+./install.sh --target ~/.config/opencode --force
 ```
 
 ### Manual Configuration
 
 1. **Agents:** Copy/symlink `agents/*.md` to `~/.config/opencode/agents/`
 2. **Memory:** Copy/symlink `memory/*.md` to `~/.config/opencode/memory/`
-3. **Plugins:** Copy/symlink `plugins/*` to `~/.config/opencode/plugins/`
-4. **CLI Tools:** Copy `scripts/opencode-remote` to `~/.local/bin/opencode-remote` and create aliases:
-   ```bash
-   chmod +x ~/.local/bin/opencode-remote
-   ln -sf ~/.local/bin/opencode-remote ~/.local/bin/ocd
-   ln -sf ~/.local/bin/opencode-remote ~/.local/bin/oc-remote
-   ```
+3. **Plugins (opt-in):** Copy/symlink `plugins/plan-panel` to `~/.config/opencode/plugins/plan-panel`
 
 ---
 
@@ -230,14 +215,11 @@ opencode-orchestrator/
 │   ├── sec-pentest.md       # Safe exploitation validation subagent (read-only)
 │   └── sec-fix.md           # Security remediation subagent (least-privilege)
 ├── plugins/                 # OpenCode V2 TUI Plugins (SolidJS)
-│   ├── plan-panel/          # Active plan artifact visualizer (Ctrl+G, /plans) — opt-in install
-│   │   ├── index.ts
-│   │   └── tui.tsx
-│   └── remote/              # Remote host selector & footer status (/remote)
+│   └── plan-panel/          # Active plan artifact visualizer (Ctrl+G, /plans) — opt-in install
 │       ├── index.ts
 │       └── tui.tsx
-├── scripts/                 # CLI utilities
-│   └── opencode-remote      # Fast Python-based remote management tool
+├── commands/                # Slash command definitions
+│   └── analytics.md         # Orchestrator analytics command
 ├── memory/                  # Hierarchical memory blocks
 │   ├── persona.md           # Persona & memory guidelines
 │   ├── human.md             # Collaboration & interaction preferences
